@@ -1,0 +1,76 @@
+<html>
+    <link href="leptonCSS.css"  rel="stylesheet">
+    <link href="nouislider.css" rel="stylesheet">
+    <script src="nouislider.js"></script>
+    
+    <body class="tahiGradient">
+        <h2></h2>        
+        <!--Temperature Control-->
+        <div id="slider" class="tempSlider"></div>        
+        <div style="width: 50%; margin: 0 auto; margin-top: 10; margin-bottom: 10;">
+            <span id="lowerTemp">Lower: </span>
+            <div class="spacer"></div>
+            <span id="upperTemp">Upper: </span>
+            <script type="text/javascript" src="temperatureControl.js"></script>
+        </div>
+        
+        <!-- Lepton Canvas -->
+        <div id="status" style="text-align: center">
+            <canvas id="leptonCanvas" class="canvasBox"></canvas>
+            <div class="statusBox">
+                <text id="AUXTemp" class="statusText">AUX Temp: 123</text>
+                <br>
+                <text id="FPATemp" class="statusText">FPA Temp: 123</text>
+                <br>
+                <text id="Uptime" class="statusText">Uptime: 123H</text>
+                <br>
+                <text id="X" class="statusText">X: 10px</text>
+                <br>
+                <text id="Y" class="statusText">Y: 10px</text>
+                <br>
+                <text id="Temp" class="statusText">Temp: 123C</text>
+                <br>
+                <div id="buttonWrapper">
+                    <p>
+                        <button name="uploadButton" class="button" onclick="clickUploadButton()">Upload Config</button>
+                        <br>
+                        <button class="button" name="saveROIs" onclick="clickSaveROIButton()">Save ROIs</button>
+                        <br>
+                        <button class="button" name="stopSaving" onclick="clickStopSavingButton()">Stop Saving</button>
+                        <br>
+                        <button class="button" name="getLog" onclick="clickGetLogButton()">Get Log</button>
+                        <br>
+                        <button class="button" name="ffcButton" onclick="clickFFCButton()">FFC</button>
+                    </p>
+                </div>
+                <p>Relay State 
+                    <br>
+                    <input type="radio" name="relayState" value="On" onclick="toggleRelays(1)">On
+                    <br>
+                    <input type="radio" name="relayState" value="Off" onclick="toggleRelays(0)">Off
+                </p>
+                <br>
+                <text>Load ROI Log File: </text>
+                <br>
+                <select id="roiFileBox" onchange="viewROIFile(this.value)">
+                    <option value="none">None</option>
+                </select>
+            </div>
+            <div class="roiTextArea">
+                <textarea id="configTextArea">
+
+                </textarea>
+            </div>
+            <div class="messageTextArea">
+                <textarea id="MessageBox">
+
+                </textarea>
+            </div>  
+        </div>
+        
+        <!--Websocket to stream image data from server-->
+        <script type="text/javascript" src="websocket.js"></script>
+        <!--Handle Drawing of ROIS-->
+        <script type="text/javascript" src="drawROI.js"></script>
+    </body>
+</html>

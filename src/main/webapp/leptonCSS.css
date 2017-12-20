@@ -1,0 +1,103 @@
+/*
+To change this license header, choose License Headers in Project Properties.
+To change this template file, choose Tools | Templates
+and open the template in the editor.
+*/
+/* 
+    Created on : Sep 27, 2017, 9:14:19 PM
+    Author     : amcelroy
+*/
+
+.tahiGradient {
+/*    background: linear-gradient(yellow, red);*/
+}
+
+.spacer{
+    width: 55%;
+    display:inline-block;
+}
+
+span{
+    margin: 2% 2%;
+}
+
+p {
+    margin-left: 0;        
+}
+
+.roiTextArea {
+    vertical-align: top;
+    display: inline-block;
+    max-width: 512; 
+    min-width: 400;
+    margin: 2;
+    height: 400px;
+}
+
+#configTextArea{
+    width: 100%;
+    height: 100%;
+    overflow-y: scroll
+}
+
+.messageTextArea {
+    vertical-align: top;
+    display: inline-block;
+    width: 400px; 
+    margin: 2;
+    height: 400px;
+}
+
+#MessageBox {
+    width: 100%;
+    height: 100%;
+    overflow-y: scroll
+}
+
+.tempSlider {
+    margin: 0 auto; 
+    width: 75%;
+    height: 25px;
+    justify-content: center;
+}
+
+.canvasBox{
+    vertical-align: top;
+    display: inline-block;
+    width: 600px;
+    height: 400px;
+    margin: 2;
+    border: 1px solid #000000;   
+}
+
+.statusBox{
+    vertical-align: top;
+/*    align-self: center;*/
+    display: inline-block;
+    width: 175px;
+    height: 400px;
+    min-width: 175px;
+    max-width: 25%;
+/*    align-content: center;*/
+    border: 1px solid #000000;  
+    margin: 2;
+}
+
+.button {
+    width: 150px;
+    margin-bottom: 3;    
+}
+
+#buttonWrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 80%;
+  margin: 10 auto;
+  height: auto;
+  margin-top: 3px;
+}
+
+#roiFileBox {
+    width: 80%;
+}
