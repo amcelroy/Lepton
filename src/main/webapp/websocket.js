@@ -152,10 +152,10 @@ function onMessage(evt){
                 document.getElementById("Uptime").innerHTML = "Uptime: " + parsedJSON.Uptime + " H";
                 break;
                 
-            case "message":
-                var mesgBox = document.getElementById("MessageBox");
-                mesgBox.value = parsedJSON.message + "\r\n" + mesgBox.value;
-                break;
+//            case "message":
+//                var mesgBox = document.getElementById("MessageBox");
+//                mesgBox.value = parsedJSON.message + "\r\n" + mesgBox.value;
+//                break;
                     
                     
         }

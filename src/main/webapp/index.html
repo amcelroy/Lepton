@@ -30,23 +30,26 @@
                 <br>
                 <text id="Temp" class="statusText">Temp: 123C</text>
                 <br>
-                <div id="buttonWrapper">
-                    <p>
-                        <button name="uploadButton" class="button" onclick="clickUploadButton()">Upload Config</button>
-                        <br>
+                <table id="buttonWrapper">
+                    <tr><td>
+                        <button class="button" name="uploadButton" onclick="clickUploadButton()">Upload Config</button>
+                    </td></tr>
+                    <tr><td>
                         <button class="button" name="saveROIs" onclick="clickSaveROIButton()">Save ROIs</button>
-                        <br>
+                    </td></tr>
+                    <tr><td>
                         <button class="button" name="stopSaving" onclick="clickStopSavingButton()">Stop Saving</button>
-                        <br>
+                    </td></tr>
+                    <tr><td>
                         <button class="button" name="getLog" onclick="clickGetLogButton()">Get Log</button>
-                        <br>
+                    </td></tr>
+                    <tr><td>
                         <button class="button" name="ffcButton" onclick="clickFFCButton()">FFC</button>
-                    </p>
-                </div>
+                    </td></tr>
+                </table>
                 <p>Relay State 
                     <br>
                     <input type="radio" name="relayState" value="On" onclick="toggleRelays(1)">On
-                    <br>
                     <input type="radio" name="relayState" value="Off" onclick="toggleRelays(0)">Off
                 </p>
                 <br>
@@ -61,11 +64,13 @@
 
                 </textarea>
             </div>
+<!--
             <div class="messageTextArea">
                 <textarea id="MessageBox">
 
                 </textarea>
             </div>  
+-->
         </div>
         
         <!--Websocket to stream image data from server-->

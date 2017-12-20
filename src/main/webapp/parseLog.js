@@ -88,11 +88,17 @@ function openLog(uri){
                             label: roiList[0].name,
                             data: roiList[0].temp,  
                             fill: false,
-                            backgroundColor: colors[0],
+                            bordorColor: colors[0],
                         }]
                     },
                     options: {
                         //showLines: true,
+                        elements:{
+                            point: {
+                                radius: 0,
+                                hitRadius: 10                                
+                            }
+                        },                        
                         tooltips: {
                             mode: 'index',
                             intersect: false,
@@ -144,7 +150,7 @@ function openLog(uri){
                         label: roiList[i].name,
                         data: roiList[i].temp,
                         fill: false,
-                        backgroundColor: selectedColor,
+                        bordorColor: selectedColor,
                     };
                     window.tempChart.data.datasets.push(dataset);
                 }                
