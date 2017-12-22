@@ -47,11 +47,11 @@ public class LeptonSPI implements Runnable, LeptonServerListener {
     public void run() {        
         int packetsWithoutFrame = 0;
         while(noError){
-//            try {
-//                Thread.sleep(15);
-//            } catch (InterruptedException ex) {
-//                Log.get().LogEvent(ex.getLocalizedMessage());
-//            }
+            try {
+                Thread.sleep(15);
+            } catch (InterruptedException ex) {
+                Log.get().LogEvent(ex.getLocalizedMessage());
+            }
             
             try{
                 //Allocate new Packet

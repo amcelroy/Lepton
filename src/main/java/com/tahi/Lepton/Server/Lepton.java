@@ -930,8 +930,8 @@ public class Lepton implements LeptonServerListener, Runnable{
                         segment = (int)tmp_row[0] & 0xFF;
                         segment &= 0x70;
                         segment = segment >> 4;
-                        if(segment == 0){
-
+                        if(segment == 0 || segment > 4){
+                            segment = 1;
                         }
                     }
                 }else{

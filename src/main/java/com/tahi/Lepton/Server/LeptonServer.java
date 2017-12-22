@@ -541,7 +541,7 @@ public class LeptonServer implements Runnable, LeptonStatusListener, GpioPinList
                     emitFFC();
                     lepton.runFFC();
                     try {
-                        Thread.sleep(2000);
+                        Thread.sleep(3000);
                     } catch (InterruptedException e) {
                     }
                     
