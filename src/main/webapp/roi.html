@@ -10,6 +10,8 @@ and open the template in the editor.
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <script src="Chart.bundle.js"></script>
         <script src="parseLog.js"></script>
+        <link href="leptonCSS.css"  rel="stylesheet">
+        
     </head>
     <body id="body">
         <script type="text/javascript">
@@ -17,7 +19,8 @@ and open the template in the editor.
             
             window.onload = function() {
                 openLog(roiFile);
-            };            
+            };           
         </script>
+        <button class="button" name="rawDataButton" onclick="window.open(roiFile)">Raw Data</button>
     </body>
 </html>

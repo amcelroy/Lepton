@@ -81,14 +81,15 @@ function openLog(uri){
                 var config = {
                     type: 'line',
                     backgroundColor: "rgba(1, 0, 0, 0.1)",
-                    borderColor: "rgba(1, 0, 0, 0.1)",
+                    borderColor: "rgba(1, 0, 0, 0.0)",
                     data: {
                         labels: time,
                         datasets: [{
                             label: roiList[0].name,
                             data: roiList[0].temp,  
                             fill: false,
-                            bordorColor: colors[0],
+                            pointRadius: 1,
+                            backgroundColor: colors[0],
                         }]
                     },
                     options: {
@@ -150,7 +151,8 @@ function openLog(uri){
                         label: roiList[i].name,
                         data: roiList[i].temp,
                         fill: false,
-                        bordorColor: selectedColor,
+                        pointRadius: 1,
+                        backgroundColor: selectedColor,
                     };
                     window.tempChart.data.datasets.push(dataset);
                 }                
