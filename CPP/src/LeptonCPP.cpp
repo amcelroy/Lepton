@@ -9,11 +9,14 @@
 #include <iostream>
 #include "Process.hpp"
 #include "SPI_PipelineStage.hpp"
+#include "wiringPi.h"
 
 using namespace OSIP;
 using namespace std;
 
 int main() {
+	wiringPiSetup();
+
 	SPIPipeline s;
 	Process p;
 
