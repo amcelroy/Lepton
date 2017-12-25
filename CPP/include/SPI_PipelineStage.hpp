@@ -2,7 +2,7 @@
 #define SPIPIPELINESTAGE_HPP
 
 #include "daqstage.hpp"
-#include "bcm2835.h"
+#include "wiringPiSPI.h"
 
 #define WIDTH 80  //Number rows (u short)
 #define HEIGTH 60 //Number columns (u short)
@@ -16,35 +16,33 @@ class SPIPipeline : public DAQStage<unsigned char>{
 private:
 	vector<char> m_FrameBuffer;
 
+	int m_SPI;
 public:
 
 
-	void workstage() {
-		if(bcm2835_spi_begin() != 1){
-			log("Error starting SPI");
-			return;
-		}
+	void workStage() {
+		m_SPI = wiringPiSPISetupMode(0, 16e6, 3);
 
 		m_FrameBuffer.resize(ROW*HEIGTH);
 
-		bcm2835_spi_setChipSelectPolarity(BCM2835_SPI_CS0, 0);
-		bcm2835_spi_setClockDivider(BCM2835_SPI_CLOCK_DIVIDER_16);
-		bcm2835_spi_setDataMode(BCM2835_SPI_MODE3);
-		bcm2835_spi_chipSelect(BCM2835_SPI_CS0);
+		vector<unsigned char> rowBuffer(ROW);
 
-		vector<char> rowBuffer(ROW);
-
-		while(stopThread){
+		while(stopThread == false){
 			//acquire data, check for bad byte
-			bcm2835_spi_transfern(rowBuffer.data(), ROW); //Acquire a row
+			//bcm2835_spi_transfern(rowBuffer.data(), ROW); //Acquire a row
+
+			int retVal = wiringPiSPIDataRW(0, rowBuffer.data(), rowBuffer.size());
 
 			unsigned short* p = (unsigned short*)rowBuffer.data();
 			unsigned short frameCount = p[1];
 			unsigned short packetCheck = p[0];
 
-		}
+			for(int i = 0; i < rowBuffer.size(); i++){
+				cout << rowBuffer[i] << " ";
+			}
 
-		bcm2835_spi_end();
+			cout << endl;
+		}
 	}
 
 };
