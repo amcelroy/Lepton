@@ -24,7 +24,6 @@ import java.util.Arrays;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import org.apache.commons.lang3.ArrayUtils;
 import org.json.simple.JSONObject;
 
 public class Lepton implements LeptonServerListener, Runnable{
@@ -80,7 +79,7 @@ public class Lepton implements LeptonServerListener, Runnable{
 
     public class REGISTER
     {
-		public final static int STATUS = 0x2;
+        public final static int STATUS = 0x2;
     	public final static int COMMAND = 0x4;
     	public final static int DATALENGTH = 0x6;
     	public final static int LEP_I2C_DATA_0_REG = 0x08;
@@ -208,11 +207,11 @@ public class Lepton implements LeptonServerListener, Runnable{
         public final static int LEP_SYS_FFC_DONE = 3;
     }
 
-    ArrayBlockingQueue<Byte[]> spiQueue;
+    ArrayBlockingQueue<QueueObject> spiQueue;
     
-    public Lepton(ArrayBlockingQueue<Byte[]> Q)
+    public Lepton(ArrayBlockingQueue<QueueObject> Q)
     {
-        Frame = new byte[Width * Height * 2];
+        Frame = new byte[PacketHeight * PacketWidth * 2];
         TemperatureFrame = Arrays.asList(new Float[Lepton.Width*Lepton.Height]);
         packet = new Byte[PacketSize];
 
@@ -760,52 +759,19 @@ public class Lepton implements LeptonServerListener, Runnable{
         getError("Get OEM Status");
     }
 
-    public boolean getFrameAsTemperature(byte[] frame)
+    public void getFrameAsTemperature(byte[] frame)
     {
-        boolean packetError = false;
-        try
-        {
-            MeanFrameTemp = 0;
-            
-            Float[] tmp_Frame = new Float[frame.length/2];
-            for(int y = 0; y < frame.length; y+=2){
-                byte msb = frame[y + 1];
-                byte lsb = frame[y];
-                byte[] a = { lsb, msb };
-                Short xx = ByteBuffer.wrap(a).getShort();
-                int yy = (int)xx & 0xFFFF;
-                float tmp = ((float)yy / 100.0f) - 273.0f;//TemperaturePoly.yUShort(x);
-                tmp_Frame[y/2] = tmp;  
-            }
-            TemperatureFrame = Arrays.asList(tmp_Frame);
-//                float lineSum = 0;
-//                for (int x = 0; x < Lepton.Width; x++)
-//                {
-//                    byte msb = frame[y*Lepton.Width*2 + 2*x+1];
-//                    byte lsb = frame[y*Lepton.Width*2 + 2*x];
-//                    byte[] a = { lsb, msb };
-//                    Short xx = ByteBuffer.wrap(a).getShort();
-//                    int yy = (int)xx & 0xFFFF;
-//                    float tmp = ((float)yy / 100.0f) - 273.0f;//TemperaturePoly.yUShort(x);
-//                    MeanFrameTemp += tmp;
-//                    lineSum += tmp;
-//                    tmp_Frame[y*Lepton.Width + x] = tmp;         
-//                }
-//                TemperatureFrame = Arrays.asList(tmp_Frame);
-//                if(lineSum < 0 && y > 0){
-//                    packetError |= true;
-//                }else{
-//                    packetError |= false;
-//                }
-//           }
-//          MeanFrameTemp /= Frame.length;
-        }catch(Exception e)
-        {
-            packetError = true;
-            Log.get().LogEvent(e.getMessage());
+        Float[] tmp_Frame = new Float[frame.length/2];
+        for(int y = 0; y < frame.length; y+=2){
+            byte msb = frame[y + 1];
+            byte lsb = frame[y];
+            byte[] a = { lsb, msb };
+            Short xx = ByteBuffer.wrap(a).getShort();
+            int yy = (int)xx & 0xFFFF;
+            float tmp = ((float)yy / 100.0f) - 273.0f;//TemperaturePoly.yUShort(x);
+            tmp_Frame[y/2] = tmp;  
         }
-        
-        return packetError;
+        TemperatureFrame = Arrays.asList(tmp_Frame);
     }
     
     public boolean isRebooting() {
@@ -830,6 +796,55 @@ public class Lepton implements LeptonServerListener, Runnable{
     
     public static JSONObject getJSONStatus(){
         return JSONStatus;
+    }
+  
+    
+    int m_CompleteFrameCounter = 0;
+    
+    byte[] m_TmpRow;
+    
+    byte[] m_SuperFrame = null;
+    
+    int m_CountReset = 60;
+   
+    
+    private void resetFrameLoop(){
+        packetsWithoutFrame = 0;
+        _StaleFrameCount = 0;
+
+        try{                                    
+            //don't pass on FFC Frames
+            if(getFFCStates() == FFC_STATES.LEP_SYS_FFC_IN_PROCESS){
+                updateStatus(LEPTON_STATUS.FFC_IN_PROGRESS);
+            }else{
+                if(_Status != LEPTON_STATUS.NORMAL){
+                    updateStatus(LEPTON_STATUS.NORMAL);
+                }
+
+                if(LeptonStatusListeners.size() > 0){
+                    for(LeptonStatusListener ll : LeptonStatusListeners){
+                        if(ll != null){
+                            ll.FrameReady();
+                            if(m_CompleteFrameCounter > m_CountReset){
+                                ll.StatusReady();
+                            }
+                        }
+                    }
+                }
+            }
+
+            m_CompleteFrameCounter += 1;
+            if(m_CompleteFrameCounter > m_CountReset){
+                JSONStatus = new JSONObject();
+                JSONStatus.put("type", "status");
+                JSONStatus.put("FPATemp", getFPATemp());
+                JSONStatus.put("AUXTemp", getAUXTemp());
+                JSONStatus.put("Uptime", uptime()/3600);
+                m_CompleteFrameCounter = 0;
+            }
+        }catch(Exception e){
+            e.printStackTrace();
+        }
     }
     
     int ccitt_16Table[] = {
@@ -896,128 +911,94 @@ public class Lepton implements LeptonServerListener, Runnable{
         return crcin;
     }
     
-    int m_CompleteFrameCounter = 0;
-    
-    
     @Override
     public void run()
     {
-        int countReset = 60;
-    	
     	//Note!!! Change the SPI Buffer size! https://raspberrypi.stackexchange.com/questions/65595/spi-transfer-fails-with-buffer-size-greater-than-4096
         
-        boolean crc_check_array[] = new boolean[Lepton.PacketHeight];
-              
         int segment = 0;
         
         while(true){
-            Byte[] element = spiQueue.poll();
-            if(element == null){
-                try {
-                    Thread.sleep(15);
-                } catch (InterruptedException ex) {
-                    Logger.getLogger(Lepton.class.getName()).log(Level.SEVERE, null, ex);
-                }
-            }else{  
-                byte[] tmp_row = ArrayUtils.toPrimitive(element);
-                int frameCount = (int)tmp_row[1] & 0xFF;// + (packet[PacketSize * k + 2];
-                int packetCheck = (int)tmp_row[0] & 0xFF;   
-                
-                int crc_pack = ((tmp_row[2] & 0xFF) << 8) + (tmp_row[3] & 0xFF);
-                
-                if(LeptonVersion == LEPTON_VERSION.THREE){
-                    if(frameCount == 20){
-                        segment = (int)tmp_row[0] & 0xFF;
-                        segment &= 0x70;
-                        segment = segment >> 4;
-                        if(segment == 0 || segment > 4){
-                            segment = 1;
+            try{
+                m_TmpRow = spiQueue.poll().Packet;
+                if(m_TmpRow == null){
+                    try {
+                        Thread.sleep(15);
+                        packetsWithoutFrame += 1;
+                    } catch (InterruptedException ex) {
+                        Logger.getLogger(Lepton.class.getName()).log(Level.SEVERE, null, ex);
+                    }
+                }else{  
+                    int frameCount = (int)m_TmpRow[1] & 0xFF;// + (packet[PacketSize * k + 2];
+
+                    int crc_pack = (((int)m_TmpRow[2] & 0xFF) << 8) + ((int)m_TmpRow[3] & 0xFF);
+
+                    if(LeptonVersion == LEPTON_VERSION.THREE){
+                        if(frameCount == 20){
+                            segment = (int)m_TmpRow[0] & 0xFF;
+                            segment &= 0x70;
+                            segment = segment >> 4;
                         }
                     }
-                }else{
-                    segment = 1;
-                }
 
-                tmp_row[0] &= 0x0f;
-                tmp_row[2] = 0;
-                tmp_row[3] = 0;
-                
-                int crc_BE = crc16rowBE(tmp_row);
-                
-                //update crc_check array regardless
-                crc_check_array[frameCount] = (crc_pack == crc_BE);
-                
-                if(crc_pack == crc_BE && segment != 0){  
-                    System.arraycopy(tmp_row, 4, Frame, (segment - 1)*PacketHeight*(PacketWidth*2) + frameCount*(PacketWidth * 2), (PacketWidth * 2));           
+                    m_TmpRow[0] &= 0x0f;
+                    m_TmpRow[2] = 0;
+                    m_TmpRow[3] = 0;
 
-                    if(frameCount == PacketHeight - 1){
-                        //If the last frame has been reached, check the crc_check_array
-                        boolean entireFrameOK = true;
-                        for(boolean crc : crc_check_array){
-                            entireFrameOK &= crc;
-                        }
-                        
-                        if(entireFrameOK){  
-                            if(!getFrameAsTemperature(Frame)){  
-                                packetsWithoutFrame = 0;
-                                _StaleFrameCount = 0;
+                    int crc_BE = crc16rowBE(m_TmpRow);
 
-                                try{                                    
-                                    //don't pass on FFC Frames
-                                    if(getFFCStates() == FFC_STATES.LEP_SYS_FFC_IN_PROCESS){
-                                        updateStatus(LEPTON_STATUS.FFC_IN_PROGRESS);
-                                    }else{
-                                        if(_Status != LEPTON_STATUS.NORMAL){
-                                            updateStatus(LEPTON_STATUS.NORMAL);
-                                        }
+                    if(crc_BE == crc_pack){  
+                        try{
+                            System.arraycopy(m_TmpRow, 4, Frame, frameCount*(PacketWidth * 2), (PacketWidth * 2)); 
 
-                                        if(LeptonStatusListeners.size() > 0){
-                                            for(LeptonStatusListener ll : LeptonStatusListeners){
-                                                if(ll != null){
-                                                    ll.FrameReady();
-                                                    if(m_CompleteFrameCounter > countReset){
-                                                        ll.StatusReady();
-                                                    }
-                                                }
-                                            }
-                                        }
+                            if(frameCount == PacketHeight - 1){                        
+                                if(LeptonVersion == LEPTON_VERSION.THREE){
+                                    if(m_SuperFrame == null){
+                                        m_SuperFrame = new byte[Width*Height*2];
                                     }
 
-                                    m_CompleteFrameCounter += 1;
-                                    if(m_CompleteFrameCounter > countReset){
-                                        JSONStatus = new JSONObject();
-                                        JSONStatus.put("type", "status");
-                                        JSONStatus.put("FPATemp", getFPATemp());
-                                        JSONStatus.put("AUXTemp", getAUXTemp());
-                                        JSONStatus.put("Uptime", uptime()/3600);
-                                        m_CompleteFrameCounter = 0;
-                                    }
-                                }catch(Exception e){
-                                    e.printStackTrace();
-                                }	
-                            }
-                        }
-                    }
-                }else{
-                    packetsWithoutFrame += 1;
-                    if(packetsWithoutFrame > 450){
-                                          
-                        spiQueue.clear();
-                            
-                        //TODO: Add reboot back in
-                        Thread t = new Thread(new Runnable() {
-                            @Override
-                            public void run() {
-                                updateStatus(LEPTON_STATUS.HARD_REBOOT);
-                            }
-                        });   
-                        t.start();
+                                    if(segment > 0 && segment <= 4){
+                                        //Copy the segment to the superframe
+                                        int frameSize = PacketHeight*PacketWidth*2;
+                                        System.arraycopy(Frame, 0, m_SuperFrame, (segment - 1)*frameSize, frameSize);
 
-                        _StaleFrameCount = 0;
-                        packetsWithoutFrame = 0;
-                    }
-                }              
-            }        
-        }       
+                                        if(segment == 4){
+                                            getFrameAsTemperature(m_SuperFrame);
+                                            resetFrameLoop();
+                                        }
+                                    }                            
+                                }else{
+                                    //Do Lepton 2 stuff
+                                    getFrameAsTemperature(Frame);
+                                    resetFrameLoop();                 
+                                }
+                            }
+                        }catch(IndexOutOfBoundsException e){
+                            int x = 0;
+                        }
+                    }else{
+                        packetsWithoutFrame += 1;
+                        if(packetsWithoutFrame > 450){
+
+                            spiQueue.clear();
+
+                            //TODO: Add reboot back in
+                            Thread t = new Thread(new Runnable() {
+                                @Override
+                                public void run() {
+                                    updateStatus(LEPTON_STATUS.HARD_REBOOT);
+                                }
+                            });   
+                            t.start();
+
+                            _StaleFrameCount = 0;
+                            packetsWithoutFrame = 0;
+                        }
+                    }              
+                }        
+            }catch(Exception e){
+                int x = 0;
+            }
+        }
     }
 }

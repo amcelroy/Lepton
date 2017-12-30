@@ -24,9 +24,9 @@ public class LeptonSPI implements Runnable, LeptonServerListener {
     
     boolean m_FFC = false;
     
-    volatile ArrayBlockingQueue<Byte[]> _PacketQueue;
+    ArrayBlockingQueue<QueueObject> _PacketQueue;
     
-    ArrayBlockingQueue<Byte[]> getSPIQueue(){
+    ArrayBlockingQueue<QueueObject> getSPIQueue(){
         return _PacketQueue;
     }
     
@@ -42,10 +42,14 @@ public class LeptonSPI implements Runnable, LeptonServerListener {
         
         _PacketQueue = new ArrayBlockingQueue<>(1000);
     }
+        
+    byte[] m_Packet = new byte[Lepton.PacketHeight*Lepton.PacketSize];
     
     @Override
     public void run() {        
-        int packetsWithoutFrame = 0;
+        //Allocate new Packet
+        //*(Lepton.Height/Lepton.PacketHeight)];
+        
         while(noError){
             try {
                 Thread.sleep(15);
@@ -54,44 +58,32 @@ public class LeptonSPI implements Runnable, LeptonServerListener {
             }
             
             try{
-                //Allocate new Packet
-                byte[] packet = new byte[Lepton.PacketSize*Lepton.Height*(Lepton.Height/Lepton.PacketHeight)];
                 //Fetch new packet from Lepton
-                int error = Spi.wiringPiSPIDataRW(0, packet);
+                int error = Spi.wiringPiSPIDataRW(0, m_Packet);
 
                 //Check for -1 Error - See WiringPi library for more details.
                 if(error == -1){
                     //noError = false;
                 }
 
-                int packetCount = packet.length / Lepton.PacketSize;
-                
                 //Loop through packets searching for valid packets
-                for(int j = 0; j < packetCount; j++){            	
-                    int frameCount = (int)packet[j*Lepton.PacketSize + 1] & 0xFF;// + (packet[PacketSize * k + 2];
-                    int packetCheck = (int)packet[j*Lepton.PacketSize] & 0xFF;
-                    
-                    if((packetCheck & 0x0F) == 0x0F){
-                        
-                    }else{                    
-                        //If packet is valid, send to consumer queue
-                        if(frameCount < Lepton.PacketHeight){
-                            try{
-                                packetsWithoutFrame = 0;
-                                int start = j*Lepton.PacketSize;
-                                int end = start + Lepton.PacketSize;
-                                byte[] row = ArrayUtils.subarray(packet, start, end);
-                                Byte[] rowObj = ArrayUtils.toObject(row);
-                                if(m_Rebooting == false && m_FFC == false){
-                                    _PacketQueue.add(rowObj);
-                                }else{
-                                    _PacketQueue.add(null);
-                                }
-                            }catch(IllegalStateException e){
-                                _PacketQueue.clear();
-                            }catch(Exception e){
-                                Log.get().LogEvent(e.getLocalizedMessage());
+                for(int j = 0; j < Lepton.PacketHeight; j++){   
+                    int frameCount = (int)m_Packet[j*Lepton.PacketSize + 1] & 0xFF;// + (packet[PacketSize * k + 2];
+                                   
+                    //If packet is valid, send to consumer queue
+                    if(frameCount < Lepton.PacketHeight){
+                        try{
+                            int start = j*Lepton.PacketSize;
+                            int end = start + Lepton.PacketSize;
+                            if(m_Rebooting == false && m_FFC == false ){
+                                _PacketQueue.add(new QueueObject(ArrayUtils.subarray(m_Packet, start, end)));
+                            }else{
+                                _PacketQueue.add(null);
                             }
+                        }catch(IllegalStateException e){
+                            _PacketQueue.clear();
+                        }catch(Exception e){
+                            Log.get().LogEvent(e.getLocalizedMessage());
                         }
                     }
                 }    

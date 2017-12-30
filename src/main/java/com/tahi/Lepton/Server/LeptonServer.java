@@ -217,8 +217,7 @@ public class LeptonServer implements Runnable, LeptonStatusListener, GpioPinList
                     
                     if(ROILoggingEnabled){
                         //TODO: Check file exists, if no, create
-                        try{
-                            
+                        try{                          
                             File f = new File("/tahi/ROI/" + ROILogName);
                             if(f.exists()){
                                 _RelayBank.writeROILog(f);
@@ -482,14 +481,6 @@ public class LeptonServer implements Runnable, LeptonStatusListener, GpioPinList
                 
                 send(lepton.getJSONStatus());   
                 
-
-//                if(_RecordTemps){
-//                    lepton.setRecordTemps(_RecordTemps);
-//                    _RecordTemps = false;
-//                }else{
-//                    lepton.setRecordTemps(_RecordTemps);
-//                }
-
                 if(BlackbodyCal) {
                     if(_Blackbody.getTemperature() <= 0){
                         lepton.TemperaturePoly = new Polynomial(0.0f, 1.0f, 0.0f);
