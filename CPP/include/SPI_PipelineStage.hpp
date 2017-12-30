@@ -3,10 +3,8 @@
 
 #include "daqstage.hpp"
 #include "wiringPiSPI.h"
-
-#define WIDTH 80  //Number rows (u short)
-#define HEIGTH 60 //Number columns (u short)
-#define ROW 164   //Number of bytes in a row
+#include <memory>
+#include "constants.h"
 
 using namespace OSIP;
 using namespace std;
@@ -17,31 +15,31 @@ private:
 	vector<char> m_FrameBuffer;
 
 	int m_SPI;
+
 public:
 
-
-	void workStage() {
+	void work() {
 		m_SPI = wiringPiSPISetupMode(0, 16e6, 3);
 
-		m_FrameBuffer.resize(ROW*HEIGTH);
+		m_FrameBuffer.resize(ROW*HEIGHT);
 
-		vector<unsigned char> rowBuffer(ROW);
+		vector<unsigned long long> dim;
+		dim.push_back(WIDTH);
+		dim.push_back(HEIGHT);
 
 		while(stopThread == false){
 			//acquire data, check for bad byte
 			//bcm2835_spi_transfern(rowBuffer.data(), ROW); //Acquire a row
+			vector<unsigned char> rowBuffer(ROW);
 
 			int retVal = wiringPiSPIDataRW(0, rowBuffer.data(), rowBuffer.size());
 
-			unsigned short* p = (unsigned short*)rowBuffer.data();
-			unsigned short frameCount = p[1];
-			unsigned short packetCheck = p[0];
+			unsigned char frameCount = rowBuffer.data()[1];
 
-			for(int i = 0; i < rowBuffer.size(); i++){
-				cout << rowBuffer[i] << " ";
+			if(frameCount < HEIGHT){
+				Payload<unsigned char> payload(dim, make_shared<vector<unsigned char>>(rowBuffer), "Frame");
+				sendPayload(payload);
 			}
-
-			cout << endl;
 		}
 	}
 

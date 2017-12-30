@@ -1,0 +1,6 @@
+eclipse.preferences.version=1
+environment/project/cdt.managedbuild.config.gnu.cross.exe.debug.1292285787/PATH/delimiter=\:
+environment/project/cdt.managedbuild.config.gnu.cross.exe.debug.1292285787/PATH/operation=replace
+environment/project/cdt.managedbuild.config.gnu.cross.exe.debug.1292285787/PATH/value=/usr/bin\:/bin\:/usr/sbin\:/sbin\:/usr/local/Cellar/arm-gcc-bin/6-2016-q4-major/bin
+environment/project/cdt.managedbuild.config.gnu.cross.exe.debug.1292285787/append=true
+environment/project/cdt.managedbuild.config.gnu.cross.exe.debug.1292285787/appendContributed=true

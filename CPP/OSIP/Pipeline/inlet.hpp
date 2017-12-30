@@ -6,7 +6,6 @@
 #include <queue>
 #include "payload.hpp"
 #include <mutex>
-#include <complex>
 #include "boost/signals2.hpp"
 
 using namespace std;
@@ -31,6 +30,10 @@ namespace OSIP {
         Inlet(){ }
 
         int getItemsInInlet() { return _InQueue.size(); }
+
+        bool isEmpty(){
+        	return _InQueue.empty();
+        }
 
         /**
          * @brief writeData Write data to the Inlet queue
