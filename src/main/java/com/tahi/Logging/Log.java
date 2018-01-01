@@ -44,7 +44,7 @@ public class Log implements AutoCloseable{
             String event = fmt.format(new Date()) + " - " + msg + "\r\n";
             
             //Write to log
-            FileWriter fw = new FileWriter("/tahi_logs/" + Filename, true);
+            FileWriter fw = new FileWriter("/tahi/tahi_logs/" + Filename, true);
             fw.write(event);
             fw.flush();
             fw.close();
@@ -60,7 +60,7 @@ public class Log implements AutoCloseable{
     	SimpleDateFormat fmt = new SimpleDateFormat("yyyy-MM-dd_HH.mm.ss");
         String filename = fmt.format(new Date()) + ".log";
 
-        File f = new File("/tahi_logs/" + filename);
+        File f = new File("/tahi/tahi_logs/" + filename);
         if(f.createNewFile()){
         	Filename = filename;
         	LogCreated = true;
