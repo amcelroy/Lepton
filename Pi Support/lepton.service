@@ -1,0 +1,18 @@
+#register with systemctl
+#put in /etc/systemd/system
+#systemctl enable lepton.service
+#systemctl start lepton.service
+#reboot
+
+[Unit]
+Description=Lepton Autostart
+
+[Service]
+ExecStart=/tahi/pLep.sh
+Restart=always
+RestartSec=10
+Type=simple
+
+[Install]
+WantedBy=multi-user.target
+
