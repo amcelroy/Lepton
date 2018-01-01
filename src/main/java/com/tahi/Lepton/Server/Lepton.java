@@ -20,6 +20,8 @@ import com.tahi.Algorithms.Polynomial;
 import com.tahi.Lepton.Server.LeptonStatusListener.LEPTON_STATUS;
 import com.tahi.Logging.Log;
 import com.tahi.Logging.Xml;
+import java.nio.ByteOrder;
+import java.nio.ShortBuffer;
 import java.util.Arrays;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.logging.Level;
@@ -772,6 +774,13 @@ public class Lepton implements LeptonServerListener, Runnable{
             tmp_Frame[y/2] = tmp;  
         }
         TemperatureFrame = Arrays.asList(tmp_Frame);
+        
+//        ByteBuffer bb = ByteBuffer.wrap(frame);
+//        ShortBuffer sb = bb.order(ByteOrder.BIG_ENDIAN).asShortBuffer();
+//        while(sb.hasRemaining()){
+//            
+//        }
+        
     }
     
     public boolean isRebooting() {
@@ -978,7 +987,7 @@ public class Lepton implements LeptonServerListener, Runnable{
                         }
                     }else{
                         packetsWithoutFrame += 1;
-                        if(packetsWithoutFrame > 450){
+                        if(packetsWithoutFrame > 180){
 
                             spiQueue.clear();
 
