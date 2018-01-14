@@ -11,7 +11,7 @@ var tempRange = [
     ];
 var tempLabel = ['Lower: ', 'Upper: '];
 
-var slider = document.getElementById('slider');
+var slider = document.getElementById('tempSlider');
 
 noUiSlider.create(slider, {
         start: [20, 30],
@@ -26,5 +26,3 @@ slider.noUiSlider.on('update', function(values, handle){
     tempRange[handle].innerHTML = tempLabel[handle] + values[handle];
     tempValue[handle] = values[handle];
 });
-
-slider.style.width = "50%";
