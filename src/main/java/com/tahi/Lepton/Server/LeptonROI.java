@@ -175,7 +175,7 @@ public class LeptonROI {
         return roi;
     }
 
-    public void update(Float[] frame, int Width, int Height)
+    public void update(float[] frame, int Width, int Height)
     {
         if (frame == null)
         {

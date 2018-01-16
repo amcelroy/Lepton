@@ -144,7 +144,7 @@ public class Relay {
         }
     }
 
-    public void updateROI(Float[] celciusFrame)
+    public void updateROI(float[] celciusFrame)
     {
 
         float avgROITemp = 0;

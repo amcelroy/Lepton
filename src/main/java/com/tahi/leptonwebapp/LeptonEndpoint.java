@@ -83,7 +83,7 @@ public class LeptonEndpoint implements LeptonStatusListener {
                     ses.getBasicRemote().sendText(o.toJSONString());
                 } catch (IOException ex) {
                     Log.get().LogEvent(ex.getMessage());
-                    Logger.getLogger(LeptonEndpoint.class.getName()).log(Level.SEVERE, null, ex);
+                    //Logger.getLogger(LeptonEndpoint.class.getName()).log(Level.SEVERE, null, ex);
                 }
             }
         }catch(Exception e){
@@ -109,12 +109,7 @@ public class LeptonEndpoint implements LeptonStatusListener {
             sendConfig = false;
         }
         
-        Float[] frame = Lepton.TemperatureFrame.toArray(new Float[Lepton.Width*Lepton.Height]);
-        
-        float[] f = new float[frame.length];
-        for(int i = 0; i < frame.length; i++){
-            f[i] = frame[i];
-        }
+        float[] f = Lepton.getFrame();
 
         ByteBuffer bb  = ByteBuffer.allocate(f.length*4);
         bb.asFloatBuffer().put(f);
@@ -125,7 +120,8 @@ public class LeptonEndpoint implements LeptonStatusListener {
                 //send server settings
                 ses.getBasicRemote().sendBinary(bb);
             } catch (IOException ex) {
-                Logger.getLogger(LeptonEndpoint.class.getName()).log(Level.SEVERE, null, ex);
+                Log.get().LogEvent(ex.getMessage());
+                //Logger.getLogger(LeptonEndpoint.class.getName()).log(Level.SEVERE, null, ex);
             }
         }
         
@@ -145,7 +141,8 @@ public class LeptonEndpoint implements LeptonStatusListener {
                 //send server settings
                 ses.getBasicRemote().sendText(s.toJSONString());
             } catch (IOException ex) {
-                Logger.getLogger(LeptonEndpoint.class.getName()).log(Level.SEVERE, null, ex);
+                Log.get().LogEvent(ex.getMessage());
+                //Logger.getLogger(LeptonEndpoint.class.getName()).log(Level.SEVERE, null, ex);
             }
         }
     }

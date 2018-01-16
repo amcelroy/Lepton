@@ -24,12 +24,12 @@ public class Log implements AutoCloseable{
             INSTANCE = new Log();
             INSTANCE.LogCreated = false;
             try {
-				INSTANCE.createLogFile();
-			} catch (FileNotFoundException e) {
-				e.printStackTrace();
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
+                INSTANCE.createLogFile();
+            } catch (FileNotFoundException e) {
+                e.printStackTrace();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
             INSTANCE.LogCreated = true;
         }
         return INSTANCE;

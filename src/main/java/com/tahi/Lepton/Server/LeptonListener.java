@@ -9,7 +9,7 @@ package com.tahi.Lepton.Server;
  *
  * @author amcelroy
  */
-public interface LeptonServerListener {
+public interface LeptonListener {
     
     public void rebooting();
     

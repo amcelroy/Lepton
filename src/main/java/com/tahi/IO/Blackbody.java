@@ -1,9 +1,7 @@
 package com.tahi.IO;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Dictionary;
 import java.util.HashMap;
 import java.util.concurrent.ArrayBlockingQueue;
 
@@ -21,7 +19,6 @@ import com.tahi.Lepton.Server.LeptonROI;
 import com.tahi.Lepton.Server.LeptonStatusListener;
 import com.tahi.Logging.Log;
 import com.tahi.Logging.Xml;
-import java.util.Vector;
 
 public class Blackbody implements LeptonStatusListener{
 	private float Temperature;
@@ -90,7 +87,7 @@ public class Blackbody implements LeptonStatusListener{
 	
 	@Override
 	public void FrameReady() {
-            Float[] f = Lepton.TemperatureFrame.toArray(new Float[Lepton.Width*Lepton.Height]);
+            float[] f = Lepton.getFrame();
             
             ROI.update(f, Lepton.Width, Lepton.Height);
             float ROITemp = ROI.getMean();
@@ -105,7 +102,7 @@ public class Blackbody implements LeptonStatusListener{
                 } catch (InterruptedException e) {
                     MaxValueDetected = 0;
                     Log.get().LogEvent(e.getMessage());
-                    e.printStackTrace(System.out);
+                    //e.printStackTrace(System.out);
                 }			
             }	
 	}

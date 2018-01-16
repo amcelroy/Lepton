@@ -1,5 +1,6 @@
 package com.tahi.Lepton.Server;
 
+import com.pi4j.io.gpio.GpioPinDigitalOutput;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -20,15 +21,13 @@ import com.tahi.Algorithms.Polynomial;
 import com.tahi.Lepton.Server.LeptonStatusListener.LEPTON_STATUS;
 import com.tahi.Logging.Log;
 import com.tahi.Logging.Xml;
-import java.nio.ByteOrder;
-import java.nio.ShortBuffer;
 import java.util.Arrays;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.json.simple.JSONObject;
 
-public class Lepton implements LeptonServerListener, Runnable{
+public class Lepton implements Runnable{
     int i2c;
 
     int SPIVideo;
@@ -38,6 +37,8 @@ public class Lepton implements LeptonServerListener, Runnable{
     private final List<LeptonStatusListener> LeptonStatusListeners = new ArrayList<LeptonStatusListener>();
 
     public Polynomial TemperaturePoly;
+    
+    private static final Object lock = new Object();
 
     final static public int Width = 80;
     final static public int Height = 60;
@@ -50,33 +51,39 @@ public class Lepton implements LeptonServerListener, Runnable{
     
     Byte[] packet;
     private byte[] Frame;
-    public static volatile List<Float> TemperatureFrame;
+    private static float[] TemperatureFrame;
+    private float[] tmp_Frame;
 
     public int Status;
     
     private boolean Rebooting = false;
      
     LEPTON_STATUS _Status = LEPTON_STATUS.NORMAL;
+    
+    ArrayList<LeptonListener> m_Listeners = new ArrayList<>();
 
-    @Override
-    public void rebooting() {
-        //throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+    public static float[] getFrame(){     
+        synchronized(lock){
+            return Arrays.copyOf(TemperatureFrame, TemperatureFrame.length);
+        }
     }
-
-    @Override
-    public void runningFFC() {
-        //throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
-        _Status = LEPTON_STATUS.FFC_IN_PROGRESS;
+    
+    private void setFrame(float[] f){
+        synchronized(lock){
+            TemperatureFrame = Arrays.copyOf(f, f.length);
+        }
     }
-
-    @Override
-    public void rebootFinished() {
-        //throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+    
+    public void addServerListener(LeptonListener l){
+        if(!m_Listeners.contains(l)){
+            m_Listeners.add(l);
+        }
     }
-
-    @Override
-    public void finishedFFC() {
-        //throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+    
+    public void removeServerListener(LeptonListener l){
+        if(!m_Listeners.contains(l)){
+            m_Listeners.remove(l);
+        }
     }
 
     public class REGISTER
@@ -211,10 +218,11 @@ public class Lepton implements LeptonServerListener, Runnable{
 
     ArrayBlockingQueue<QueueObject> spiQueue;
     
-    public Lepton(ArrayBlockingQueue<QueueObject> Q)
-    {
+    public Lepton()
+    {        
         Frame = new byte[PacketHeight * PacketWidth * 2];
-        TemperatureFrame = Arrays.asList(new Float[Lepton.Width*Lepton.Height]);
+        TemperatureFrame = new float[Lepton.Width*Lepton.Height];
+        tmp_Frame = new float[TemperatureFrame.length];
         packet = new Byte[PacketSize];
 
         //(.05872f * x*x - 479.23f + 100.0f - 32f) * 5 / 9;
@@ -224,8 +232,6 @@ public class Lepton implements LeptonServerListener, Runnable{
         TemperaturePoly.setC(0.0f);
         
         JSONStatus = new JSONObject();
-        
-        spiQueue = Q;
     }
 
     I2CDevice LeptonI2C;
@@ -237,10 +243,18 @@ public class Lepton implements LeptonServerListener, Runnable{
     
     public float MeanFrameTemp = 0;
     
-    public void init() throws Exception
+    GpioPinDigitalOutput m_Pwr;
+    
+    LeptonSPI m_LeptonSPI;
+    
+    Thread m_LeptonSPIThread;
+    
+    public void init(GpioPinDigitalOutput pwrpin) throws Exception
     {
         Bus = I2CFactory.getInstance(I2CBus.BUS_1);
         LeptonI2C = Bus.getDevice(0x2a);
+        
+        m_Pwr = pwrpin;
 
         while(getStatus() != 6){
                 Thread.sleep(50);
@@ -252,7 +266,7 @@ public class Lepton implements LeptonServerListener, Runnable{
         Log.get().LogEvent("Lepton Status: Checking Busy Bit");
 
         while(isBusy()){
-                Thread.sleep(50);
+            Thread.sleep(50);
         }
 
         System.out.println("Lepton Status: Busy bit clear");        	
@@ -268,6 +282,15 @@ public class Lepton implements LeptonServerListener, Runnable{
         disableAGC();
         lowGain();
         setFFCMode(LEP_SYS_FFC_SHUTTER_MODE.LEP_SYS_FFC_SHUTTER_MODE_MANUAL);
+        
+        m_LeptonSPI = new LeptonSPI();
+        
+        spiQueue = m_LeptonSPI.getSPIQueue();
+        addServerListener(m_LeptonSPI);
+        
+        m_LeptonSPIThread = new Thread(m_LeptonSPI);
+        m_LeptonSPIThread.setName("SPI Thread");
+        m_LeptonSPIThread.start();
 
         byte error = setNumFramesAverage(AVERAGE.LEP_STATUS_FA_DIV_1);
         runFFC();
@@ -302,7 +325,7 @@ public class Lepton implements LeptonServerListener, Runnable{
          
          LeptonI2C.write(data);
          
- 		waitBusy();    
+        waitBusy();    
     }
     
     private void readRegister(int register, int[] dataBuffer) throws IOException
@@ -329,7 +352,7 @@ public class Lepton implements LeptonServerListener, Runnable{
     		readRegister(REGISTER.STATUS, reg);
     		return ((reg[0] & 0x1) == 1);
     	}catch(Exception e){
-    		e.printStackTrace();
+    		//e.printStackTrace();
     		return false;
     	}
     }
@@ -343,8 +366,8 @@ public class Lepton implements LeptonServerListener, Runnable{
             byte e = (byte)error; 
             int x = (reg[0] & 0x6);
             return x;
-    	}catch(Exception e){
-            e.printStackTrace();
+    	}catch(IOException e){
+            Log.get().LogEvent(e.getMessage());
             return -1;
     	}
     }
@@ -475,24 +498,12 @@ public class Lepton implements LeptonServerListener, Runnable{
         Status = getStatus();
     }
 
-    public void enableAGC()
-    {
-//        writeToRegister(REGISTER.DATALENGTH, new LeptonData(0, 2));
-//        writeToRegister(REGISTER.LEP_I2C_DATA_0_REG, new LeptonData(0, 1));
-//        writeToRegister(REGISTER.LEP_I2C_DATA_1_REG, new LeptonData(0, 0));
-//        writeToRegister(REGISTER.COMMAND, new LeptonData(MODULES.AGC, COMMAND.SET));
-//
-//        LeptonData[] results = getSequence(new LeptonData(MODULES.AGC, 0x00));
-//
-//        Status = getStatus();
-    }
-
     public Float getAUXTemp() throws IOException
     {
         if(Rebooting)
             return 0.0f;
     	
-        float temp = 0;
+        float temp;
 
         writeToRegister(REGISTER.COMMAND, new int[] {MODULES.SYS << 8 | 0x10});  
         byte e = getError("AUXTemp");
@@ -512,7 +523,7 @@ public class Lepton implements LeptonServerListener, Runnable{
 		if(Rebooting)
 			return 0.0f;
     	
-        float temp = 0;
+        float temp;
 
         writeToRegister(REGISTER.COMMAND, new int[] { MODULES.SYS << 8 | 0x14 }); 
         byte e = getError("FPATemp");
@@ -527,84 +538,58 @@ public class Lepton implements LeptonServerListener, Runnable{
         return temp;
     }
 
-/*    public SceneStatistics getSceneStatistics()
-    {
-    	LeptonData[] results = getSequence(new Data(0x2, 0x2C));
-
-        SceneStatistics ss;
-        ss.MeanIntensity = results[0].asUnsignedShort();
-        ss.MaxIntensity = results[1].asUnsignedShort();
-        ss.MinIntensity = results[2].asUnsignedShort();
-        ss.NumPixels = results[3].asUnsignedShort();            
-
-        return ss;
-    }*/
-
-    public int getShutterPosition()
-    {
-//        LeptonData[] results = getSequence(new LeptonData(0x2, 0x38));
-//
-//        int sp = results[0].Low;
-//
-//        return sp;
-    	return 0;
-    }
-
     public void runFFC() throws IOException
     {	
     	if(Rebooting)
-			return;
+            return;
     	
     	try{
-    		setShutter(SHUTTER_POSISTION.LEP_SYS_SHUTTER_POSITION_CLOSED);    	
-    		writeToRegister(REGISTER.COMMAND, new int[] { MODULES.SYS << 8 | 0x42 } );
-    	}catch(Exception e){
-    		e.printStackTrace();
+            setShutter(SHUTTER_POSISTION.LEP_SYS_SHUTTER_POSITION_CLOSED);    	
+            writeToRegister(REGISTER.COMMAND, new int[] { MODULES.SYS << 8 | 0x42 } );
+    	}catch(IOException e){
+            Log.get().LogEvent(e.getMessage());
     	}
     	
     	while(!isFFCComplete()){
-    		try {
-				Thread.sleep(50);
-			} catch (InterruptedException e) {
-				e.printStackTrace();
-			}
+            try {
+                Thread.sleep(50);
+            } catch (InterruptedException e) {
+
+            }
     	}  
     	
     	setShutter(SHUTTER_POSISTION.LEP_SYS_SHUTTER_POSITION_OPEN);
     }
     
     public boolean isFFCComplete() throws IOException{
-		if(Rebooting)
-			return false;
-    	
-		try{
-	    	writeToRegister(REGISTER.COMMAND, new int[] { MODULES.SYS << 8 | 0x44 } );
-	    	
-	    	try {
-				Thread.sleep(50);
-			} catch (InterruptedException e) {
-				e.printStackTrace();
-			}
-	    	
-	    	LeptonData[] ld = getDataRegisters();
-	    	if(ld == null){
-	    		return false;
-	    	}
-	    	
-	    	if(ld[0].Low == 0){
-	    		return true;
-	    	}else{
-	    		return false;
-	    	}
-		}catch(Exception e){
-			return false;
-		}
+        if(Rebooting)
+                return false;
+
+        try{
+            writeToRegister(REGISTER.COMMAND, new int[] { MODULES.SYS << 8 | 0x44 } );
+
+            try {
+                Thread.sleep(50);
+            } catch (InterruptedException e) {
+
+            }
+
+            LeptonData[] ld = getDataRegisters();
+            if(ld == null){
+                    return false;
+            }
+
+            return ld[0].Low == 0;
+        }catch(IOException e){
+            return false;
+        }
     }
     
     public int getNumFramesAverage() throws IOException
     {
-        if(Rebooting)
+        if(Rebooting){
             return 0;
+        }
     	//LeptonData[] results = getSequence(new LeptonData(MODULES.SYS, 0x24));
 
     	int[] reg = new int[2];
@@ -618,8 +603,9 @@ public class Lepton implements LeptonServerListener, Runnable{
 
     public byte setNumFramesAverage(int avg) throws IOException
     {
-        if(Rebooting)
-                return 0;
+        if(Rebooting){
+            return 0;
+        }
     	
     	writeToRegister(REGISTER.COMMAND, new int[] { MODULES.SYS << 8 | 0x24 });
     	
@@ -633,11 +619,11 @@ public class Lepton implements LeptonServerListener, Runnable{
 
     public float uptime() throws IOException
     {
-        if(Rebooting)
-                return 0.0f;
-    	
-    	
-        float uptime = 0;
+        if(Rebooting){
+            return 0.0f;
+        }
+    	 	
+        float uptime;
 
         int[] reg = new int[] { MODULES.SYS << 8 | 0x0C };
         writeToRegister(REGISTER.COMMAND, reg);
@@ -690,13 +676,13 @@ public class Lepton implements LeptonServerListener, Runnable{
         LeptonData[] results = getDataRegisters();
 
         if(results != null){
-                switch(results[0].Low){
-                case FFC_STATUS.LEP_SYS_STATUS_READY:
-                        return FFC_STATUS.LEP_SYS_STATUS_READY;
-                default:
-                        return FFC_STATUS.LEP_SYS_STATUS_BUSY;
+            switch(results[0].Low){
+            case FFC_STATUS.LEP_SYS_STATUS_READY:
+                    return FFC_STATUS.LEP_SYS_STATUS_READY;
+            default:
+                    return FFC_STATUS.LEP_SYS_STATUS_BUSY;
 
-                }
+            }
         }
         return FFC_STATUS.LEP_SYS_STATUS_BUSY;
     }
@@ -715,7 +701,6 @@ public class Lepton implements LeptonServerListener, Runnable{
         byte err = getError("FFC Mode");
 
         ffcSettings = getFFCSettings();
-        return;
     }
 	
     private void waitBusy() throws IOException{
@@ -725,7 +710,7 @@ public class Lepton implements LeptonServerListener, Runnable{
         int x = 0;
         while(isBusy()){
             try {
-                    Thread.sleep(50);
+                Thread.sleep(50);
             } catch (InterruptedException e) {
                 Log.get().LogEvent(e.getMessage());
             }
@@ -763,7 +748,6 @@ public class Lepton implements LeptonServerListener, Runnable{
 
     public void getFrameAsTemperature(byte[] frame)
     {
-        Float[] tmp_Frame = new Float[frame.length/2];
         for(int y = 0; y < frame.length; y+=2){
             byte msb = frame[y + 1];
             byte lsb = frame[y];
@@ -773,13 +757,7 @@ public class Lepton implements LeptonServerListener, Runnable{
             float tmp = ((float)yy / 100.0f) - 273.0f;//TemperaturePoly.yUShort(x);
             tmp_Frame[y/2] = tmp;  
         }
-        TemperatureFrame = Arrays.asList(tmp_Frame);
-        
-//        ByteBuffer bb = ByteBuffer.wrap(frame);
-//        ShortBuffer sb = bb.order(ByteOrder.BIG_ENDIAN).asShortBuffer();
-//        while(sb.hasRemaining()){
-//            
-//        }
+        setFrame(tmp_Frame);
         
     }
     
@@ -809,9 +787,7 @@ public class Lepton implements LeptonServerListener, Runnable{
   
     
     int m_CompleteFrameCounter = 0;
-    
-    byte[] m_TmpRow;
-    
+
     byte[] m_SuperFrame = null;
     
     int m_CountReset = 60;
@@ -851,8 +827,8 @@ public class Lepton implements LeptonServerListener, Runnable{
                 JSONStatus.put("Uptime", uptime()/3600);
                 m_CompleteFrameCounter = 0;
             }
-        }catch(Exception e){
-            e.printStackTrace();
+        }catch(IOException e){
+            Log.get().LogEvent(e.getMessage());
         }
     }
     
@@ -920,6 +896,84 @@ public class Lepton implements LeptonServerListener, Runnable{
         return crcin;
     }
     
+    public void reboot(){
+        //sendMessage("SPI Resync failed, hard reboot needed.");
+
+        m_LeptonSPI.pause();
+        
+        m_Pwr.setState(false);                    
+        try {
+            Thread.sleep(500);
+        } catch (InterruptedException e) {
+        }
+        m_Pwr.setState(true);
+
+        //Wait for reboot
+        try {
+            Thread.sleep(2000);
+        } catch (InterruptedException e) {
+        }
+
+        emitFFC();
+        try {
+            runFFC();
+        } catch (IOException ex) {
+            Log.get().LogEvent("FFC Error - " + ex.getMessage());
+        }
+        
+        try {
+            Thread.sleep(3000);
+        } catch (InterruptedException e) {
+        }
+        
+        emitFFC();
+        try {
+            runFFC();
+        } catch (IOException ex) {
+            Log.get().LogEvent("FFC Error - " + ex.getMessage());
+        }
+
+        emitFFCFinished();
+        emitRebootFinished();
+        
+        m_LeptonSPI.play();
+    }
+    
+    private void emitReboot(){
+        for(LeptonListener l : m_Listeners){
+            l.rebooting();
+        }
+    }
+    
+    private void emitRebootFinished(){
+        for(LeptonListener l : m_Listeners){
+            l.rebootFinished();
+        }
+    }
+    
+    public void emitFFC(){
+        for(LeptonListener l : m_Listeners){
+            l.runningFFC();
+        }
+    }
+    
+    public void emitFFCFinished(){
+        for(LeptonListener l : m_Listeners){
+            l.finishedFFC();
+        }
+    }
+    
+    private void checkPacketCounter(){                        
+        if(packetsWithoutFrame > 750){
+            spiQueue.clear();
+
+            reboot();
+
+            _StaleFrameCount = 0;
+            packetsWithoutFrame = 0;
+        } 
+    }
+    
     @Override
     public void run()
     {
@@ -929,36 +983,37 @@ public class Lepton implements LeptonServerListener, Runnable{
         
         while(true){
             try{
-                m_TmpRow = spiQueue.poll().Packet;
-                if(m_TmpRow == null){
-                    try {
-                        Thread.sleep(15);
-                        packetsWithoutFrame += 1;
-                    } catch (InterruptedException ex) {
-                        Logger.getLogger(Lepton.class.getName()).log(Level.SEVERE, null, ex);
-                    }
-                }else{  
-                    int frameCount = (int)m_TmpRow[1] & 0xFF;// + (packet[PacketSize * k + 2];
+                QueueObject tmp = spiQueue.take();
 
-                    int crc_pack = (((int)m_TmpRow[2] & 0xFF) << 8) + ((int)m_TmpRow[3] & 0xFF);
+                if(tmp == null){
+                    //try {
+                        //Thread.sleep();
+                        packetsWithoutFrame += 1;
+                    //} catch (InterruptedException ex) {
+
+                    //}
+                }else{
+                    byte[] row = tmp.Packet;
+                    int frameCount = (int)row[1] & 0xFF;// + (packet[PacketSize * k + 2];
+                    int crc_pack = (((int)row[2] & 0xFF) << 8) + ((int)row[3] & 0xFF);
 
                     if(LeptonVersion == LEPTON_VERSION.THREE){
                         if(frameCount == 20){
-                            segment = (int)m_TmpRow[0] & 0xFF;
+                            segment = (int)row[0] & 0xFF;
                             segment &= 0x70;
                             segment = segment >> 4;
                         }
                     }
 
-                    m_TmpRow[0] &= 0x0f;
-                    m_TmpRow[2] = 0;
-                    m_TmpRow[3] = 0;
+                    row[0] &= 0x0f;
+                    row[2] = 0;
+                    row[3] = 0;
 
-                    int crc_BE = crc16rowBE(m_TmpRow);
+                    int crc_BE = crc16rowBE(row);
 
                     if(crc_BE == crc_pack){  
                         try{
-                            System.arraycopy(m_TmpRow, 4, Frame, frameCount*(PacketWidth * 2), (PacketWidth * 2)); 
+                            System.arraycopy(row, 4, Frame, frameCount*(PacketWidth * 2), (PacketWidth * 2)); 
 
                             if(frameCount == PacketHeight - 1){                        
                                 if(LeptonVersion == LEPTON_VERSION.THREE){
@@ -987,26 +1042,17 @@ public class Lepton implements LeptonServerListener, Runnable{
                         }
                     }else{
                         packetsWithoutFrame += 1;
-                        if(packetsWithoutFrame > 180){
-
-                            spiQueue.clear();
-
-                            //TODO: Add reboot back in
-                            Thread t = new Thread(new Runnable() {
-                                @Override
-                                public void run() {
-                                    updateStatus(LEPTON_STATUS.HARD_REBOOT);
-                                }
-                            });   
-                            t.start();
-
-                            _StaleFrameCount = 0;
-                            packetsWithoutFrame = 0;
-                        }
-                    }              
-                }        
+                    }
+                }
+                
+              
+                if(Rebooting){
+                    packetsWithoutFrame = 0;
+                }else{
+                    checkPacketCounter();
+                }
             }catch(Exception e){
-                int x = 0;
+                Log.get().LogEvent(e.getMessage());
             }
         }
     }

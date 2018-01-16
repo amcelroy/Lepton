@@ -125,7 +125,7 @@ public class RelayBank implements LeptonStatusListener, Runnable{
 	    	if(XLAT != null)
 	    		gpioController.unprovisionPin(XLAT);
     	}catch(Exception e){
-    		e.printStackTrace();
+            Log.get().LogEvent("Error shutting down RelayBank");
     	}finally{
 
     	}
@@ -178,7 +178,7 @@ public class RelayBank implements LeptonStatusListener, Runnable{
         }
     }
 
-    public void update(Float[] Frame)
+    public void update(float[] Frame)
     {
         try
         {
@@ -200,7 +200,8 @@ public class RelayBank implements LeptonStatusListener, Runnable{
         }
         catch (Exception e)
         {
-            System.out.println(e.getMessage());
+            Log.get().LogEvent(e.getMessage());
+            //System.out.println(e.getMessage());
         }
     }
     
@@ -306,13 +307,13 @@ public class RelayBank implements LeptonStatusListener, Runnable{
                     t.start();
             }
         } catch (InterruptedException e) {
-            e.printStackTrace();
+            Log.get().LogEvent(e.getMessage());
         }
     }
 
     @Override
     public void FrameReady() {
-        Float[] frame = Lepton.TemperatureFrame.toArray(new Float[Lepton.Width*Lepton.Height]);
+        float[] frame = Lepton.getFrame();
 
 
         for (int i = 0; i < _Relays.size(); i++)

@@ -24,8 +24,6 @@ import com.pi4j.io.gpio.event.GpioPinDigitalStateChangeEvent;
 import com.pi4j.io.gpio.event.GpioPinListenerDigital;
 import com.pi4j.wiringpi.GpioUtil;
 import java.util.HashMap;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import org.json.simple.JSONObject;
 
 import com.tahi.Algorithms.Polynomial;
@@ -91,28 +89,11 @@ public class LeptonServer implements Runnable, LeptonStatusListener, GpioPinList
     Timer roiLogTimer;
     
     Timer statusTimer;
-    
-    LeptonSPI _LeptonSPI = new LeptonSPI();
-    Thread _LeptonSPIThread;
-    
+     
     Thread _LeptonProcessThread;
-    
-    ArrayList<LeptonServerListener> m_ServerListener = new ArrayList<>();
     
     public LeptonServer()  {
 
-    }
-    
-    public void addServerListener(LeptonServerListener l){
-        if(!m_ServerListener.contains(l)){
-            m_ServerListener.add(l);
-        }
-    }
-    
-    public void removeServerListener(LeptonServerListener l){
-        if(!m_ServerListener.contains(l)){
-            m_ServerListener.remove(l);
-        }
     }
     
     @Override
@@ -176,10 +157,10 @@ public class LeptonServer implements Runnable, LeptonStatusListener, GpioPinList
             Log.get().LogEvent(e1.getMessage());
         } catch (SAXException ex) {
             Log.get().LogEvent(ex.getMessage());
-            Logger.getLogger(LeptonServer.class.getName()).log(Level.SEVERE, null, ex);
+            //Logger.getLogger(LeptonServer.class.getName()).log(Level.SEVERE, null, ex);
         } catch (ParserConfigurationException ex) {
             Log.get().LogEvent(ex.getMessage());
-            Logger.getLogger(LeptonServer.class.getName()).log(Level.SEVERE, null, ex);
+            //Logger.getLogger(LeptonServer.class.getName()).log(Level.SEVERE, null, ex);
         } catch(Exception e){
             Log.get().LogEvent(e.getMessage());
         }  
@@ -228,7 +209,7 @@ public class LeptonServer implements Runnable, LeptonStatusListener, GpioPinList
                             
                         } catch (IOException e) {
                             Log.get().LogEvent(e.getMessage());
-                            e.printStackTrace();
+                            //e.printStackTrace();
                         }
                     }
             }
@@ -298,7 +279,8 @@ public class LeptonServer implements Runnable, LeptonStatusListener, GpioPinList
         try {
             send(o);
         } catch (IOException ex) {
-            Logger.getLogger(LeptonServer.class.getName()).log(Level.SEVERE, null, ex);
+            Log.get().LogEvent(ex.getLocalizedMessage());
+            //Logger.getLogger(LeptonServer.class.getName()).log(Level.SEVERE, null, ex);
         }
     }
 	
@@ -310,6 +292,10 @@ public class LeptonServer implements Runnable, LeptonStatusListener, GpioPinList
             File f;
             
             switch(ss[0].toLowerCase()){
+                case "reboot":
+                    lepton.reboot();
+                    break;
+                
                 case "enablerelays":
                     _RelayBank.enable();
                     RelaysOn = true;
@@ -443,15 +429,11 @@ public class LeptonServer implements Runnable, LeptonStatusListener, GpioPinList
 
     @Override
     public void run() {
-        _LeptonSPI = new LeptonSPI();
-        _LeptonSPIThread = new Thread(_LeptonSPI);
-        _LeptonSPIThread.setName("SPI Thread");
-        _LeptonSPIThread.start();
-        
-        lepton = new Lepton(_LeptonSPI.getSPIQueue());
+       
+        lepton = new Lepton();
 
         try{
-            lepton.init();
+            lepton.init(LeptonPWR);
         }catch(Exception e){
             Log.get().LogEvent(e.getMessage());
             System.exit(15);
@@ -465,8 +447,6 @@ public class LeptonServer implements Runnable, LeptonStatusListener, GpioPinList
         lepton.addLeptonStatusListener(_Blackbody);
         lepton.addLeptonStatusListener(this);
         CurrentFrame = new LeptonFrame();
-        
-        addServerListener(_LeptonSPI);
 
         JSONObject lepConfig = new JSONObject();
         lepConfig.put("Config", _LeptonConfig.toXML());
@@ -513,31 +493,6 @@ public class LeptonServer implements Runnable, LeptonStatusListener, GpioPinList
                     sendMessage("Lepton Normal");
                     break;
                 case HARD_REBOOT:
-                    sendMessage("SPI Resync failed, hard reboot needed.");
- 
-                    emitReboot();
-                    LeptonPWR.setState(false);                    
-                    try {
-                        Thread.sleep(500);
-                    } catch (InterruptedException e) {
-                    }
-                    LeptonPWR.setState(true);
-                    
-                    //Wait for reboot
-                    try {
-                        Thread.sleep(2000);
-                    } catch (InterruptedException e) {
-                    }
-                    
-                    emitFFC();
-                    lepton.runFFC();
-                    try {
-                        Thread.sleep(3000);
-                    } catch (InterruptedException e) {
-                    }
-                    
-                    emitFFCFinished();
-                    emitRebootFinished();
                     
                     break;			
                 default:
@@ -546,30 +501,6 @@ public class LeptonServer implements Runnable, LeptonStatusListener, GpioPinList
             }
         }catch(Exception e){
             Log.get().LogEvent(e.getMessage());
-        }
-    }
-    
-    private void emitReboot(){
-        for(LeptonServerListener l : m_ServerListener){
-            l.rebooting();
-        }
-    }
-    
-    private void emitRebootFinished(){
-        for(LeptonServerListener l : m_ServerListener){
-            l.rebootFinished();
-        }
-    }
-    
-    public void emitFFC(){
-        for(LeptonServerListener l : m_ServerListener){
-            l.runningFFC();
-        }
-    }
-    
-    public void emitFFCFinished(){
-        for(LeptonServerListener l : m_ServerListener){
-            l.finishedFFC();
         }
     }
 

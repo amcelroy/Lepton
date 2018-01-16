@@ -62,6 +62,10 @@ function clickSaveROIButton(){
     websocket.send("logroi:" + roiFilename);
 }
 
+function clickRebootFFCButton(){
+    websocket.send("reboot");
+}
+
 function clickStopSavingButton(){
     websocket.send("stopSaving");
 }
