@@ -45,7 +45,7 @@ public class LeptonSPI implements Runnable, LeptonListener {
     
     public LeptonSPI(){
         //Init SPI
-        int SPISpeed = (int) 8e6;
+        int SPISpeed = (int) 4e6;
 
         m_SPIVideo = Spi.wiringPiSPISetupMode(Spi.CHANNEL_0, (int)SPISpeed, Spi.MODE_3);
         try {
@@ -68,13 +68,13 @@ public class LeptonSPI implements Runnable, LeptonListener {
             
             if(m_Pause){
                 try {
-                    Thread.sleep(0);
+                    Thread.sleep(10);
                 } catch (InterruptedException ex) {
                     Log.get().LogEvent(ex.getLocalizedMessage());
                 }
             }else{            
                 try {
-                    Thread.sleep(10);
+                    Thread.sleep(1);
                 } catch (InterruptedException ex) {
                     Log.get().LogEvent(ex.getLocalizedMessage());
                 }
@@ -84,7 +84,7 @@ public class LeptonSPI implements Runnable, LeptonListener {
                     int error = Spi.wiringPiSPIDataRW(m_SPIVideo, m_Packet);
 
                     if(error < 0){
-                        int SPISpeed = (int) 8e6;
+                        int SPISpeed = (int) 4e6;
                         m_SPIVideo = Spi.wiringPiSPISetupMode(Spi.CHANNEL_0, (int)SPISpeed, Spi.MODE_3);
                         Thread.sleep(2000);
                         Log.get().LogEvent("Severe error - SPI could not be read, error -1, stopping thread...");

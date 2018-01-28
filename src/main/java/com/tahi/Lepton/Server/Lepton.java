@@ -289,6 +289,7 @@ public class Lepton implements Runnable{
         addServerListener(m_LeptonSPI);
         
         m_LeptonSPIThread = new Thread(m_LeptonSPI);
+        m_LeptonSPIThread.setPriority(7);
         m_LeptonSPIThread.setName("SPI Thread");
         m_LeptonSPIThread.start();
 
