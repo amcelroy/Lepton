@@ -8,7 +8,7 @@ package com.tahi.Lepton.Server;
 import com.pi4j.io.spi.SpiDevice;
 import com.pi4j.wiringpi.Spi;
 import com.tahi.Logging.Log;
-import org.apache.commons.collections4.queue.CircularFifoQueue;
+import java.util.concurrent.ArrayBlockingQueue;
 
 /**
  *
@@ -29,9 +29,9 @@ public class LeptonSPI implements Runnable, LeptonListener {
     
     boolean m_Pause = false;
     
-    CircularFifoQueue<QueueObject> _PacketQueue;
+    ArrayBlockingQueue<QueueObject> _PacketQueue;
     
-    CircularFifoQueue<QueueObject> getSPIQueue(){
+    ArrayBlockingQueue<QueueObject> getSPIQueue(){
         return _PacketQueue;
     }
     
@@ -54,7 +54,7 @@ public class LeptonSPI implements Runnable, LeptonListener {
             Log.get().LogEvent(ex.getLocalizedMessage());
         }
         
-        _PacketQueue = new CircularFifoQueue<>(1024);
+        _PacketQueue = new ArrayBlockingQueue<>(2000, true);
     }
         
     byte[] m_Packet = new byte[Lepton.Height*Lepton.PacketSize];
@@ -73,11 +73,11 @@ public class LeptonSPI implements Runnable, LeptonListener {
                     Log.get().LogEvent(ex.getLocalizedMessage());
                 }
             }else{            
-                //try {
-                    Thread.yield();
-                //} catch (InterruptedException ex) {
-                //    Log.get().LogEvent(ex.getLocalizedMessage());
-                //}
+                try {
+                    Thread.sleep(1);
+                } catch (InterruptedException ex) {
+                    Log.get().LogEvent(ex.getLocalizedMessage());
+                }
 
                 try{
                     //Fetch new packet from Lepton
@@ -86,25 +86,21 @@ public class LeptonSPI implements Runnable, LeptonListener {
                     if(error < 0){
                         int SPISpeed = (int) 4e6;
                         m_SPIVideo = Spi.wiringPiSPISetupMode(Spi.CHANNEL_0, (int)SPISpeed, Spi.MODE_3);
-                        Thread.sleep(250);
-                        //Log.get().LogEvent("Severe error - SPI could not be read, error -1, stopping thread...");
+                        Thread.sleep(2000);
+                        Log.get().LogEvent("Severe error - SPI could not be read, error -1, stopping thread...");
                     }
 
-                    int start;
-                    int frameCount;
-                    
                     //Loop through packets searching for valid packets
                     for(int j = 0; j < Lepton.Height; j++){   
-                        frameCount = (int)m_Packet[j*Lepton.PacketSize + 1] & 0xFF;// + (packet[PacketSize * k + 2];
-                        //crc_pack = (((int)m_Packet[j*Lepton.PacketSize + 2] & 0xFF) << 8) + ((int)m_Packet[j*Lepton.PacketSize + 3] & 0xFF);
+                        int frameCount = (int)m_Packet[j*Lepton.PacketSize + 1] & 0xFF;// + (packet[PacketSize * k + 2];
+                        int crc_pack = (((int)m_Packet[j*Lepton.PacketSize + 2] & 0xFF) << 8) + ((int)m_Packet[j*Lepton.PacketSize + 3] & 0xFF);
 
-                        boolean crc_zero = (m_Packet[j*Lepton.PacketSize + 2] == 0) & (m_Packet[j*Lepton.PacketSize + 3] == 0);
-                        
                         //If packet is valid, send to consumer queue
-                        if(frameCount < Lepton.PacketHeight && !crc_zero){
+                        if(frameCount < Lepton.PacketHeight && crc_pack != 0){
                             try{
+                                int start = j*Lepton.PacketSize;
+                                int end = start + Lepton.PacketSize;
                                 if(m_Rebooting == false && m_FFC == false){
-                                    start = j*Lepton.PacketSize;
                                     byte[] tmp = new byte[Lepton.PacketSize];
                                     System.arraycopy(m_Packet, start, tmp, 0, Lepton.PacketSize);
                                     _PacketQueue.add(new QueueObject(tmp));

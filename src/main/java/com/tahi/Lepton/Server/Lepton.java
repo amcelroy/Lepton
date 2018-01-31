@@ -22,7 +22,9 @@ import com.tahi.Lepton.Server.LeptonStatusListener.LEPTON_STATUS;
 import com.tahi.Logging.Log;
 import com.tahi.Logging.Xml;
 import java.util.Arrays;
-import org.apache.commons.collections4.queue.CircularFifoQueue;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import org.json.simple.JSONObject;
 
 public class Lepton implements Runnable{
@@ -32,7 +34,7 @@ public class Lepton implements Runnable{
     
     public enum LEPTON_VERSION { TWO, THREE };
 
-    private final List<LeptonStatusListener> LeptonStatusListeners = new ArrayList<>();
+    private final List<LeptonStatusListener> LeptonStatusListeners = new ArrayList<LeptonStatusListener>();
 
     public Polynomial TemperaturePoly;
     
@@ -214,7 +216,7 @@ public class Lepton implements Runnable{
         public final static int LEP_SYS_FFC_DONE = 3;
     }
 
-    CircularFifoQueue<QueueObject> spiQueue;
+    ArrayBlockingQueue<QueueObject> spiQueue;
     
     public Lepton()
     {        
@@ -287,7 +289,7 @@ public class Lepton implements Runnable{
         addServerListener(m_LeptonSPI);
         
         m_LeptonSPIThread = new Thread(m_LeptonSPI);
-        m_LeptonSPIThread.setPriority(8);
+        m_LeptonSPIThread.setPriority(7);
         m_LeptonSPIThread.setName("SPI Thread");
         m_LeptonSPIThread.start();
 
@@ -459,7 +461,7 @@ public class Lepton implements Runnable{
 
         writeToRegister(REGISTER.COMMAND, new int[] {MODULES.RAD << 8 | 0x10});  
         byte e = getError("Disable Radiometery");
-        //LeptonData[] results = getDataRegisters();
+        LeptonData[] results = getDataRegisters();
         
         getError("Disable Radiometery");
         
@@ -796,9 +798,7 @@ public class Lepton implements Runnable{
         packetsWithoutFrame = 0;
         _StaleFrameCount = 0;
 
-        try{       
-            spiQueue.clear();
-            
+        try{                                    
             //don't pass on FFC Frames
             if(getFFCStates() == FFC_STATES.LEP_SYS_FFC_IN_PROCESS){
                 updateStatus(LEPTON_STATUS.FFC_IN_PROGRESS);
@@ -930,10 +930,9 @@ public class Lepton implements Runnable{
         emitFFC();
         try {
             runFFC();
-            setFFCMode(LEP_SYS_FFC_SHUTTER_MODE.LEP_SYS_FFC_SHUTTER_MODE_MANUAL);
         } catch (IOException ex) {
             Log.get().LogEvent("FFC Error - " + ex.getMessage());
-        }        
+        }
 
         emitFFCFinished();
         emitRebootFinished();
@@ -967,7 +966,7 @@ public class Lepton implements Runnable{
     
     private void checkPacketCounter(){                        
         if(packetsWithoutFrame > 750){
-            //spiQueue.clear();
+            spiQueue.clear();
 
             reboot();
 
@@ -985,7 +984,7 @@ public class Lepton implements Runnable{
         
         while(true){
             try{
-                QueueObject tmp = spiQueue.remove();
+                QueueObject tmp = spiQueue.take();
 
                 if(tmp == null){
                     //try {

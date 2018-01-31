@@ -29,9 +29,10 @@
     
     <dependencies>
         <dependency>
-            <groupId>com.pi4j</groupId>
-            <artifactId>pi4j-core</artifactId>
-            <version>1.2-SNAPSHOT</version>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-lang3</artifactId>
+            <version>3.6</version>
+            <type>jar</type>
         </dependency>
         <dependency>
             <groupId>javax</groupId>
@@ -51,9 +52,10 @@
             <version>1.1.1</version>
         </dependency>
         <dependency>
-            <groupId>org.apache.commons</groupId>
-            <artifactId>commons-collections4</artifactId>
-            <version>4.1</version>
+            <groupId>com.pi4j</groupId>
+            <artifactId>pi4j-core</artifactId>
+            <version>1.2-SNAPSHOT</version>
+            <scope>compile</scope>
         </dependency>
     </dependencies>
 
