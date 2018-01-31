@@ -32,7 +32,6 @@ import com.tahi.IO.RelayBank;
 import com.tahi.Lepton.Server.Lepton.SHUTTER_POSISTION;
 import com.tahi.Logging.Log;
 import com.tahi.leptonwebapp.LeptonEndpoint;
-import java.util.ArrayList;
 import javax.servlet.ServletContextEvent;
 import javax.servlet.ServletContextListener;
 
