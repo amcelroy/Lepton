@@ -9,6 +9,7 @@ import com.pi4j.io.spi.SpiDevice;
 import com.pi4j.wiringpi.Spi;
 import com.tahi.Logging.Log;
 import java.util.concurrent.ArrayBlockingQueue;
+import org.apache.commons.collections4.queue.CircularFifoQueue;
 
 /**
  *
@@ -29,9 +30,9 @@ public class LeptonSPI implements Runnable, LeptonListener {
     
     boolean m_Pause = false;
     
-    ArrayBlockingQueue<QueueObject> _PacketQueue;
+    CircularFifoQueue<byte[]> _PacketQueue;
     
-    ArrayBlockingQueue<QueueObject> getSPIQueue(){
+    CircularFifoQueue<byte[]> getSPIQueue(){
         return _PacketQueue;
     }
     
@@ -54,7 +55,7 @@ public class LeptonSPI implements Runnable, LeptonListener {
             Log.get().LogEvent(ex.getLocalizedMessage());
         }
         
-        _PacketQueue = new ArrayBlockingQueue<>(2000, true);
+        _PacketQueue = new CircularFifoQueue<>(2000);
     }
         
     byte[] m_Packet = new byte[Lepton.Height*Lepton.PacketSize];
@@ -74,7 +75,7 @@ public class LeptonSPI implements Runnable, LeptonListener {
                 }
             }else{            
                 try {
-                    Thread.sleep(1);
+                    Thread.sleep(10);
                 } catch (InterruptedException ex) {
                     Log.get().LogEvent(ex.getLocalizedMessage());
                 }
@@ -93,17 +94,16 @@ public class LeptonSPI implements Runnable, LeptonListener {
                     //Loop through packets searching for valid packets
                     for(int j = 0; j < Lepton.Height; j++){   
                         int frameCount = (int)m_Packet[j*Lepton.PacketSize + 1] & 0xFF;// + (packet[PacketSize * k + 2];
-                        int crc_pack = (((int)m_Packet[j*Lepton.PacketSize + 2] & 0xFF) << 8) + ((int)m_Packet[j*Lepton.PacketSize + 3] & 0xFF);
+                        //int crc_pack = (((int)m_Packet[j*Lepton.PacketSize + 2] & 0xFF) << 8) + ((int)m_Packet[j*Lepton.PacketSize + 3] & 0xFF);
 
                         //If packet is valid, send to consumer queue
-                        if(frameCount < Lepton.PacketHeight && crc_pack != 0){
+                        if(frameCount < Lepton.PacketHeight){
                             try{
                                 int start = j*Lepton.PacketSize;
-                                int end = start + Lepton.PacketSize;
                                 if(m_Rebooting == false && m_FFC == false){
                                     byte[] tmp = new byte[Lepton.PacketSize];
                                     System.arraycopy(m_Packet, start, tmp, 0, Lepton.PacketSize);
-                                    _PacketQueue.add(new QueueObject(tmp));
+                                    _PacketQueue.add(tmp);
                                 }
                             }catch(IllegalStateException e){
                                 _PacketQueue.clear();

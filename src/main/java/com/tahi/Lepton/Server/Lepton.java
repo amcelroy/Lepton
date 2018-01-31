@@ -25,6 +25,7 @@ import java.util.Arrays;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import org.apache.commons.collections4.queue.CircularFifoQueue;
 import org.json.simple.JSONObject;
 
 public class Lepton implements Runnable{
@@ -216,7 +217,7 @@ public class Lepton implements Runnable{
         public final static int LEP_SYS_FFC_DONE = 3;
     }
 
-    ArrayBlockingQueue<QueueObject> spiQueue;
+    CircularFifoQueue<byte[]> spiQueue;
     
     public Lepton()
     {        
@@ -984,9 +985,9 @@ public class Lepton implements Runnable{
         
         while(true){
             try{
-                QueueObject tmp = spiQueue.take();
+                byte[] row = spiQueue.remove();
 
-                if(tmp == null){
+                if(row == null){
                     //try {
                         //Thread.sleep();
                         packetsWithoutFrame += 1;
@@ -994,7 +995,6 @@ public class Lepton implements Runnable{
 
                     //}
                 }else{
-                    byte[] row = tmp.Packet;
                     int frameCount = (int)row[1] & 0xFF;// + (packet[PacketSize * k + 2];
                     int crc_pack = (((int)row[2] & 0xFF) << 8) + ((int)row[3] & 0xFF);
 
